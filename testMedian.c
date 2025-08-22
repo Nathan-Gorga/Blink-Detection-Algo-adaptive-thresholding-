@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <gsl/gsl_statistics_float.h>
 
 
 

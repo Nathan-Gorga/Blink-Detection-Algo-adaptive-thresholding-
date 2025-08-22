@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
 
     sample_freq = 256
-    win_size = 3.5  # seconds — MUST match the detector's win_size
+    win_size = 3  # seconds — MUST match the detector's win_size
 
     t, eeg = simulate_eeg_with_blinks(duration=30, fs=sample_freq, blink_rate=0.3)
 
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # # new_eeg = preprocess_for_blinks(eeg, sample_freq)
 
     blink_indices, thresholds = detect_blinks_adaptive(
-        eeg, sample_freq, win_size=win_size, th_mult=5#, use_abs=False
+        eeg, sample_freq, win_size=win_size, th_mult=6#, use_abs=False
     )
 
 
