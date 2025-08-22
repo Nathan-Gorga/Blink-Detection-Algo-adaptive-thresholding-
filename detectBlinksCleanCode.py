@@ -138,7 +138,7 @@ if __name__ == '__main__':
     # # new_eeg = preprocess_for_blinks(eeg, sample_freq)
 
     blink_indices, thresholds = detect_blinks_adaptive(
-        eeg, sample_freq, win_size=win_size, th_mult=5
+        eeg, sample_freq, win_size=win_size, th_mult=5#, use_abs=False
     )
 
 
