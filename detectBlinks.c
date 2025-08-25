@@ -11,33 +11,63 @@
 #define SAMPLE_FREQUENCY 250
 
 
-// static int cmp_float(const void *a, const void *b) {
-//     float fa = *(const float *)a;
-//     float fb = *(const float *)b;
-//     return (fa > fb) - (fa < fb); // returns +1, 0, or -1
-// }
+static inline float rand_uniform() {
+    return 2.0f * ((float)rand() / RAND_MAX) - 1.0f;
+}
 
-// // Median function using qsort
-// float median(float arr[], int n) {
-//     if (n == 0) return 0.0f;
+// Fonction principale : simulation EEG avec clignements
+void simulate_eeg_with_blinks(
+    float duration,       // secondes
+    int fs,               // fréquence d'échantillonnage
+    float blink_rate,     // clignements par seconde
+    float blink_amp,      // amplitude µV
+    float noise_level,    // bruit µV
+    float **t_out,        // pointeur vers vecteur temps
+    float **eeg_out,      // pointeur vers signal EEG
+    int *n_samples_out    // nombre d’échantillons
+) {
+    int n_samples = (int)(duration * fs);
+    *n_samples_out = n_samples;
 
-//     // Make a copy so original array isn't modified
-//     float *copy = malloc(n * sizeof(float));
-//     if (!copy) return 0.0f; // memory allocation failed
-//     for (int i = 0; i < n; i++) copy[i] = arr[i];
+    // Allocation
+    float *t = malloc(n_samples * sizeof(float));
+    float *eeg = malloc(n_samples * sizeof(float));
 
-//     qsort(copy, n, sizeof(float), cmp_float);
+    if (!t || !eeg) {
+        fprintf(stderr, "Erreur allocation mémoire\n");
+        exit(1);
+    }
 
-//     float med;
-//     if (n % 2 == 1) {
-//         med = copy[n / 2];
-//     } else {
-//         med = 0.5f * (copy[n / 2 - 1] + copy[n / 2]);
-//     }
+    // Vecteur temps et EEG de fond
+    for (int i = 0; i < n_samples; i++) {
+        t[i] = (float)i / fs;
+        eeg[i] =
+            30.0f * sinf(2.0f * M_PI * 10.0f * t[i]) +  // alpha
+            15.0f * sinf(2.0f * M_PI * 6.0f * t[i]) +   // theta
+            10.0f * sinf(2.0f * M_PI * 20.0f * t[i]) +  // beta
+            noise_level * rand_uniform();               // bruit blanc
+    }
 
-//     free(copy);
-//     return med;
-// }
+    // Positions des clignements
+    int n_blinks = (int)(duration * blink_rate);
+    for (int b = 0; b < n_blinks; b++) {
+        int pos = rand() % n_samples;
+        int width = (int)(0.3f * fs); // 300 ms
+        int half = width / 2;
+
+        for (int j = -half; j < half; j++) {
+            int idx = pos + j;
+            if (idx >= 0 && idx < n_samples) {
+                float win = (float)j;
+                float blink = blink_amp * expf(-0.5f * powf(win / (0.1f * fs), 2.0f));
+                eeg[idx] += blink;
+            }
+        }
+    }
+
+    *t_out = t;
+    *eeg_out = eeg;
+}
 
 
 int argmax(const float arr[], int n) {
@@ -178,15 +208,29 @@ int detectBlinksAdaptiveThresholding(float eeg[], const int signal_length, const
 
 int main(void){
 
+    srand((unsigned)time(NULL));
+
+    float *t, *eeg;
+    int n_samples;
+
+    simulate_eeg_with_blinks(
+        10.0f,    // durée
+        256,      // fs
+        0.25f,    // clignements / s
+        150.0f,   // amplitude µV
+        20.0f,    // bruit µV
+        &t, &eeg, &n_samples
+    );
+
     const float win_size = 3.5f;//seconds
 
     const float th_mult = 5.0f;
 
-    float eeg[SIGNAL_LENGTH] = {0.0f}; // TODO : GET OR SIMULATE THE SIGNAL
+    // float eeg[SIGNAL_LENGTH] = {0.0f}; // TODO : GET OR SIMULATE THE SIGNAL
 
     int blink_indices[ (int) (SIGNAL_LENGTH / 10)] = {0}; 
 
-    const int num_blinks = detectBlinksAdaptiveThresholding(eeg ,SIGNAL_LENGTH, SAMPLE_FREQUENCY, win_size, blink_indices, th_mult);
+    const int num_blinks = detectBlinksAdaptiveThresholding(eeg, n_samples, SAMPLE_FREQUENCY, win_size, blink_indices, th_mult);
 
     if(num_blinks < 0) return 1;
 
@@ -197,6 +241,9 @@ int main(void){
         printf("%d ", blink_indices[i]);
 
     }printf("\n");
+
+    free(t);
+    free(eeg);
 
     return 0;
 }
